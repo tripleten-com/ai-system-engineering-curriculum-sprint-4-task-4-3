@@ -1,0 +1,29 @@
+# Coldline - Task 4.3
+# File: submission-sample.yaml
+# Component: Fictional completed answer sheet
+# Purpose: Show the accepted shape.
+# Interacts With: docs/contracts/submission.schema.json
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.3
+# Concepts: Answer-sheet shape
+# Tools: YAML
+
+# Keep answers: {} in submission.yaml; the sample shows the same empty mapping.
+# Complete the four files described in the Task contract.
+# Do not include secrets, personal data, or local absolute paths.
+
+# Task 4.3 — Step 1: Route every model answer through the output schema
+# Call validate_summary before the transition that stores a summary in
+# src/worker/use_cases.py; `poe scenario` shows the stored record.
+# Step 2: Fail safely on malformed and manipulated answers
+# Store the output policy's fixed outcome on the NEEDS_REVIEW transition;
+# `poe scenario --response malformed` and `--response manipulated` show it.
+# Step 3: Record the audit events for one interaction
+# Record the worker's four events in src/worker/use_cases.py and the summary-read
+# event in src/api/routes.py; `poe audit-trail <exception_id>` prints the trail.
+# Step 4: Add deterministic negative tests
+# Write the three tests in tests/student/test_output_guardrail.py and the two in
+# tests/student/test_audit.py; `poe student-tests` runs them.
+# Source: docs/student/task-4-3-contract.md.
+# Your code, your tests, and the audit trail provide the evidence for these Steps.
+# Keep this mapping empty; this Task has no direct-answer fields to complete.
+answers: {}

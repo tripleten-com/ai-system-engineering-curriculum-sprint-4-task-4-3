@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Coldline Task 4.3 public answer contract. This Task has no direct answer: the deliverable is the guardrail call, the fail-safe rejection handling and the worker's audit events in src/worker/use_cases.py, the summary-read audit event in src/api/routes.py, and the student's negative tests in tests/student/test_output_guardrail.py and tests/student/test_audit.py. The automated checks exercise the running stack with the supplied emulator responses, read the audit trail back, and rerun the student's tests under supplied mutations, rather than reading a recorded claim. The mapping is required and must be empty, so an invented status or self-reported test result is rejected rather than accepted as evidence.",
+  "title": "Coldline Task 4.3 answers",
+  "description": "An intentionally empty answer mapping.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["answers"],
+  "properties": {
+    "answers": {
+      "description": "Empty by design. Add no field: the code, the tests, and the audit trail are the evidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 0
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Coldline - Task 4.3
+# File: submission-template.yaml
+# Component: Public verifier fixture
+# Purpose: Exercise the shipped answer sheet inside the public test suite.
+# Interacts With: tests/contract/test_submission.py
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.3
+# Concepts: Deterministic assessment, implementation as evidence
+# Tools: YAML
+
+# A copy of the shipped submission.yaml's one value, so the public tests prove the
+# empty mapping is accepted as it stands and an invented field is rejected.
+answers: {}

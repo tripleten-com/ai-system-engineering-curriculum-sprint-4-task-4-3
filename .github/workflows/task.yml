@@ -1,0 +1,179 @@
+# Coldline - Task 4.3
+# File: .github/workflows/task.yml
+# Component: Published Task CI
+# Purpose: Run the student-visible verification contract on pull requests.
+# Interacts With: uv, Poe, Docker Compose
+# Sprint/Task: Sprint 4 - Project 4 / Task 4.3
+# Concepts: Deterministic assessment, output validation, audit, mutation testing
+# Tools: GitHub Actions
+
+name: Task 4.3 verification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    # This is the STUDENT contract: on a fresh opening checkpoint it is supposed to fail, and a
+    # student makes it pass. Export PRs regenerate the whole template, so running it there only
+    # produced permanent red that masked real regressions. template-integrity.yml covers those
+    # branches instead.
+    if: >-
+      !startsWith(github.head_ref, 'export/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repository
+        # actions/checkout v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        # actions/setup-python v6.0.0
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: "3.12"
+      - name: Install pinned tooling
+        run: |
+          python infra/scripts/bootstrap.py
+          python infra/scripts/preflight.py
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+          .tools/bin/uv sync --frozen
+      # Task 4.3 records answers: {}. The format check is static (the mapping is present
+      # and empty) and needs no running stack, so it runs first and fails fast. `poe verify`
+      # below repeats it and adds the permitted-path boundary (hence fetch-depth: 0 above),
+      # the stored record of each supplied response, the audit trail's order and trace
+      # ids, the absence of credentials, the inherited access rule, and the student's
+      # tests as written and under the two supplied mutations, alongside the inherited
+      # checks over the supplied checkpoint. There is no protected answer job: this Task
+      # grades nothing privately.
+      - name: Check the answer sheet's format
+        run: .tools/bin/uv run --frozen poe answers
+      # Registry pulls are the one network-dependent part of startup, so they are retried
+      # with backoff here; `poe start` below then finds every image already present.
+      - name: Pull and build the pinned images
+        run: |
+          compose="docker compose --profile observability --profile localstack"
+          for attempt in 1 2 3 4; do
+            if $compose pull --quiet --ignore-buildable && $compose build; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 4 ]; then
+              echo "::warning::image pull or build attempt $attempt failed; retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::image pull or build failed after 4 attempts"
+          exit 1
+      - name: Start the pinned runtime
+        run: .tools/bin/uv run --frozen poe start
+      - name: Ingest the supplied corpus
+        run: .tools/bin/uv run --frozen poe ingest
+      - name: Verify the public contract
+        run: .tools/bin/uv run --frozen poe verify
+      # On failure or cancellation (a `timeout-minutes` stop included), and before `poe reset`
+      # removes the containers: every service's logs, the initializer's included, so a
+      # startup failure leaves its reason behind. The initializer, API and worker show their
+      # last 2000 lines and every other service its last 200, so a chatty service cannot bury
+      # them. When `compose ps` finds no container (a job that failed before the runtime
+      # started) or cannot run at all, the step says so instead of printing empty groups.
+      - name: Show the runtime logs on failure
+        if: failure() || cancelled()
+        run: |
+          compose="docker compose --profile observability --profile localstack"
+          if [ -z "$($compose ps --all --quiet 2>/dev/null)" ]; then
+            echo "No runtime containers to show."
+            exit 0
+          fi
+          $compose ps --all || true
+          for service in $($compose config --services); do
+            case "$service" in
+              initializer|api|worker) tail=2000 ;;
+              *) tail=200 ;;
+            esac
+            echo "::group::$service logs (last $tail lines at most)"
+            $compose logs --no-color --timestamps --tail "$tail" "$service" || true
+            echo "::endgroup::"
+          done
+      - name: Stop the runtime
+        if: always()
+        run: .tools/bin/uv run --frozen poe reset
+
+  # Task 3.5's own settled reliability gate, carried forward unchanged through the Project 4
+  # checkpoints: its one step runs `poe queue-contract`, Task 3.3's automated check for the
+  # deployed dead-letter redrive budget. This job is supplied in Task 4.3, not assessed
+  # here, and .github/workflows/task.yml is not student-editable: keep this whole file exactly
+  # as supplied.
+  reliability-gate:
+    if: >-
+      !startsWith(github.head_ref, 'export/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        # actions/checkout v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.12
+        # actions/setup-python v6.0.0
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: "3.12"
+      - name: Install pinned tooling
+        run: |
+          python infra/scripts/bootstrap.py
+          python infra/scripts/preflight.py
+          echo "$PWD/.tools/bin" >> "$GITHUB_PATH"
+          .tools/bin/uv sync --frozen
+      # Registry pulls are the one network-dependent part of startup, so they are retried
+      # with backoff here; `poe start` below then finds every image already present.
+      - name: Pull and build the pinned images
+        run: |
+          compose="docker compose --profile observability --profile localstack"
+          for attempt in 1 2 3 4; do
+            if $compose pull --quiet --ignore-buildable && $compose build; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 4 ]; then
+              echo "::warning::image pull or build attempt $attempt failed; retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            fi
+          done
+          echo "::error::image pull or build failed after 4 attempts"
+          exit 1
+      - name: Start the pinned runtime
+        run: .tools/bin/uv run --frozen poe start
+      - name: Run the reliability check
+        run: .tools/bin/uv run --frozen poe queue-contract
+      # On failure or cancellation (a `timeout-minutes` stop included), and before `poe reset`
+      # removes the containers: every service's logs, the initializer's included, so a
+      # startup failure leaves its reason behind. The initializer, API and worker show their
+      # last 2000 lines and every other service its last 200, so a chatty service cannot bury
+      # them. When `compose ps` finds no container (a job that failed before the runtime
+      # started) or cannot run at all, the step says so instead of printing empty groups.
+      - name: Show the runtime logs on failure
+        if: failure() || cancelled()
+        run: |
+          compose="docker compose --profile observability --profile localstack"
+          if [ -z "$($compose ps --all --quiet 2>/dev/null)" ]; then
+            echo "No runtime containers to show."
+            exit 0
+          fi
+          $compose ps --all || true
+          for service in $($compose config --services); do
+            case "$service" in
+              initializer|api|worker) tail=2000 ;;
+              *) tail=200 ;;
+            esac
+            echo "::group::$service logs (last $tail lines at most)"
+            $compose logs --no-color --timestamps --tail "$tail" "$service" || true
+            echo "::endgroup::"
+          done
+      - name: Stop the runtime
+        if: always()
+        run: .tools/bin/uv run --frozen poe reset
